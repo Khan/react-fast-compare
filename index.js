@@ -55,11 +55,24 @@ function equal(a, b) {
       return true;
     }
 
+    // There's an upstream bug in `fast-deep-equal` for nested `Set`s
+    // which our tests do cover.
+    var bIt, bI;
     if (hasSet && (a instanceof Set) && (b instanceof Set)) {
       if (a.size !== b.size) return false;
       it = a.entries();
-      while (!(i = it.next()).done)
-        if (!b.has(i.value[0])) return false;
+
+      aSetLoop: for (i = it.next(); !i.done; i = it.next()) {
+        if (!b.has(i.value[0])) {
+          // NOTE: Modification to fix nested set issue in `fast-deep-equal`
+          // Add manual iteration of all set B values.
+          bIt = b.entries();
+          for (bI = bIt.next(); !bI.done; bI = bIt.next())
+            if (equal(i.value[0], bI.value[0])) continue aSetLoop;
+
+          return false;
+        }
+      }
       return true;
     }
     // END: Modifications
